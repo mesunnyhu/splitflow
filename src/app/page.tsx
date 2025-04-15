@@ -17,7 +17,7 @@ export default function Home() {
         Built for teams, creators & freelancers to split income by %
       </p>
 
-      <Link href="/split" className="bg-white text-black px-6 py-3 rounded-lg font-semibold">
+      <Link href="/dashboard" className="bg-white text-black px-6 py-3 rounded-lg font-semibold">
         🚀 Get Started
       </Link>
     </main>
