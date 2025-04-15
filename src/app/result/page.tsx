@@ -47,7 +47,7 @@ export default function ResultPage() {
       const order = await res.json();
 
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '', // Make sure this is defined
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
         amount: order.amount,
         currency: order.currency,
         name: projectName || 'SplitFlow Project',
@@ -66,6 +66,12 @@ export default function ResultPage() {
           project: projectName,
         },
         theme: { color: '#000000' },
+        modal: {
+          ondismiss: function () {
+            console.warn('❌ Payment popup closed');
+            window.location.href = '/failure';
+          },
+        },
       };
 
       const rzp = new window.Razorpay(options);
