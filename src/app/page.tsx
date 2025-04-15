@@ -45,9 +45,9 @@ export default function Home() {
         </a>
       </div>
 
-      <Link href="/stats" className="text-sm mt-6 underline text-gray-400 hover:text-white">
+      {/* <Link href="/stats" className="text-sm mt-6 underline text-gray-400 hover:text-white">
   📊 View Stats
-      </Link>
+      </Link> */}
     </main>
   );
 }
