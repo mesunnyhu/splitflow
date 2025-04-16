@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface Member {
   name: string;
@@ -17,9 +23,13 @@ export default function SuccessPage() {
   useEffect(() => {
     const raw = localStorage.getItem('splitflowData');
     if (raw) {
-      const { projectName, total, members }: { projectName: string; total: string; members: Member[] } = JSON.parse(raw);
-      const totalAmt = parseFloat(total);
+      const { projectName, total, members }: {
+        projectName: string;
+        total: string;
+        members: Member[];
+      } = JSON.parse(raw);
 
+      const totalAmt = parseFloat(total);
       const withPayout = members.map((member: Member) => ({
         ...member,
         payout: ((parseFloat(member.percent) || 0) / 100) * totalAmt,
@@ -29,7 +39,20 @@ export default function SuccessPage() {
       setTotalAmount(totalAmt);
       setMembers(withPayout);
 
-      // ✅ Log success
+      // ✅ Log to Supabase
+      supabase.from('splits').insert([
+        {
+          project_name: projectName,
+          total_amount: totalAmt,
+          members: withPayout, // JSONB column
+          created_at: new Date().toISOString(),
+        }
+      ]).then(({ error }) => {
+        if (error) console.error('❌ Supabase insert error:', error.message);
+        else console.log('✅ Saved split to Supabase');
+      });
+
+      // ✅ Optional log API hit (can remove later)
       fetch('/api/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -42,7 +65,7 @@ export default function SuccessPage() {
         }),
       });
 
-      // 🧠 Track basic stats in localStorage
+      // 🧠 Track local stats
       const splitCount = parseInt(localStorage.getItem('splitCount') || '0');
       localStorage.setItem('splitCount', (splitCount + 1).toString());
 

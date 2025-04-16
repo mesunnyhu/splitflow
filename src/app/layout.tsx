@@ -12,10 +12,32 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "SplitFlow — Smart Payment Splits",
-  description: "Automatically split payments among team members",
+export const metadata = {
+  title: 'SplitFlow — Effortless Payment Splitting',
+  description: 'Automatically split payments with your team or collaborators. Built for freelancers, creators, and indie hackers.',
+  openGraph: {
+    title: 'SplitFlow',
+    description: 'Effortless payment splitting for teams and creators.',
+    url: 'https://splitflow.vercel.app',
+    siteName: 'SplitFlow',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'SplitFlow App Preview',
+      },
+    ],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SplitFlow',
+    description: 'Effortless payment splitting for teams and creators.',
+    images: ['/og-image.png'],
+  },
 };
+
 
 export default function RootLayout({
   children,

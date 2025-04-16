@@ -2,14 +2,19 @@
 
 import { useState } from 'react';
 
+interface Member {
+  name: string;
+  percent: string;
+}
+
 export default function DashboardPage() {
-  const [members, setMembers] = useState([{ name: '', percent: '' }]);
+  const [members, setMembers] = useState<Member[]>([{ name: '', percent: '' }]);
   const [total, setTotal] = useState('');
   const [projectName, setProjectName] = useState('');
 
-  const handleMemberChange = (index: number, field: string, value: string) => {
+  const handleMemberChange = (index: number, field: keyof Member, value: string) => {
     const updated = [...members];
-    updated[index][field as 'name' | 'percent'] = value;
+    updated[index][field] = value;
     setMembers(updated);
   };
 
@@ -20,19 +25,34 @@ export default function DashboardPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Save data to localStorage or pass via URL (for now)
+    // 🧠 Validate all fields are filled
+    const isValid = members.every((m) => m.name.trim() && m.percent.trim());
+    if (!isValid) {
+      alert('Please fill out all member fields.');
+      return;
+    }
+
+    // ✅ Validate total percentage equals 100
+    const totalPercent = members.reduce((sum, m) => sum + (parseFloat(m.percent) || 0), 0);
+    if (Math.abs(totalPercent - 100) > 0.01) {
+      alert(`Total percentage must equal 100%. Right now it's ${totalPercent}%`);
+      return;
+    }
+
     const payload = {
       projectName,
       total,
       members,
     };
+
     localStorage.setItem('splitflowData', JSON.stringify(payload));
     window.location.href = '/result';
   };
 
   return (
-    <main className="max-w-xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold">SplitFlow Dashboard</h1>
+    <main className="max-w-xl mx-auto p-4 space-y-6">
+      <h1 className="text-2xl font-bold">⚡️ SplitFlow Dashboard</h1>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           className="w-full border p-2 rounded"
@@ -46,7 +66,7 @@ export default function DashboardPage() {
         <input
           className="w-full border p-2 rounded"
           type="number"
-          placeholder="Total Amount"
+          placeholder="Total Amount (₹)"
           value={total}
           onChange={(e) => setTotal(e.target.value)}
           required
@@ -83,7 +103,7 @@ export default function DashboardPage() {
 
         <button
           type="submit"
-          className="bg-black text-white px-6 py-2 rounded w-full"
+          className="bg-black text-white px-6 py-2 rounded w-full hover:bg-gray-800 transition"
         >
           Calculate Split
         </button>

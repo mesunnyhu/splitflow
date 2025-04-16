@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 interface Member {
   name: string;
@@ -8,104 +9,108 @@ interface Member {
   payout?: number;
 }
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 export default function ResultPage() {
+  const [loading, setLoading] = useState(true);
   const [projectName, setProjectName] = useState('');
   const [totalAmount, setTotalAmount] = useState(0);
   const [members, setMembers] = useState<Member[]>([]);
 
   useEffect(() => {
-    const raw = localStorage.getItem('splitflowData');
-    if (raw) {
-      const { projectName, total, members } = JSON.parse(raw);
-      const totalAmt = parseFloat(total);
+    const fetchSplit = async () => {
+      const id = sessionStorage.getItem('lastProjectId');
+      if (!id) {
+        alert('❌ No project ID found!');
+        return;
+      }
 
-      const withPayout = members.map((member: Member) => ({
-        ...member,
-        payout: ((parseFloat(member.percent) || 0) / 100) * totalAmt,
+      const { data, error } = await supabase
+        .from('splits')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('❌ Error fetching split:', error);
+        alert('Failed to fetch split data');
+        return;
+      }
+
+      const total = parseFloat(data.total_amount);
+      const enrichedMembers = data.members.map((m: Member) => ({
+        ...m,
+        payout: ((parseFloat(m.percent) || 0) / 100) * total,
       }));
 
-      setProjectName(projectName);
-      setTotalAmount(totalAmt);
-      setMembers(withPayout);
-    }
+      setProjectName(data.project_name);
+      setTotalAmount(total);
+      setMembers(enrichedMembers);
+      setLoading(false);
+    };
+
+    fetchSplit();
   }, []);
 
-  const handlePayment = async () => {
-    try {
-      const res = await fetch('/api/razorpay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: totalAmount }),
-      });
-
-      const order = await res.json();
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
-        amount: order.amount,
-        currency: order.currency,
-        name: projectName || 'SplitFlow Project',
-        description: 'SplitFlow Payment',
-        order_id: order.id,
-        handler(response: any) {
-          console.log('✅ Payment Success:', response);
-          window.location.href = '/success';
-        },
-        prefill: {
-          name: 'Test User',
-          email: 'test@example.com',
-          contact: '9999999999',
-        },
-        notes: {
-          project: projectName,
-        },
-        theme: { color: '#000000' },
-        modal: {
-          ondismiss: function () {
-            console.warn('❌ Payment popup closed');
-            window.location.href = '/failure';
-          },
-        },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (error) {
-      console.error('❌ Payment failed to initiate:', error);
-      alert('Something went wrong with payment initiation.');
-    }
-  };
+  if (loading) {
+    return (
+      <main className="max-w-xl mx-auto p-6 text-center">
+        <p className="text-gray-600">Loading your split results...</p>
+      </main>
+    );
+  }
 
   return (
-    <main className="max-w-xl mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-bold">🔍 Split Results</h1>
-      <p className="text-lg">💼 Project: {projectName}</p>
-      <p>💰 Total: ₹{totalAmount.toLocaleString()}</p>
+    <main className="max-w-xl mx-auto p-6 space-y-6 text-center">
+      <h1 className="text-3xl font-bold text-black">🧮 Split Summary</h1>
+      <p className="text-lg text-gray-700">💼 Project: {projectName}</p>
+      <p className="text-gray-600">💰 Total Amount: ₹{totalAmount.toLocaleString()}</p>
 
-      <div className="space-y-2">
-        {members.map((m, i) => (
-          <div
-            key={i}
-            className="flex justify-between p-2 border rounded bg-gray-50"
-          >
-            <span>{m.name} ({m.percent}%)</span>
-            <span>₹{m.payout?.toFixed(2)}</span>
-          </div>
-        ))}
+      <div className="bg-gray-100 p-4 rounded-lg text-left">
+        <h2 className="text-xl font-semibold mb-3">Members</h2>
+        <ul className="space-y-2">
+          {members.map((m, i) => (
+            <li key={i} className="flex justify-between text-sm text-gray-800">
+              <span>{m.name} ({m.percent}%)</span>
+              <span>₹{m.payout?.toFixed(2)}</span>
+            </li>
+          ))}
+        </ul>
       </div>
+      {/* Feedback Box */}
+<div className="mt-8 bg-white p-4 rounded-lg shadow border border-gray-200">
+  <h3 className="text-lg font-semibold mb-2">💬 Got feedback?</h3>
+  <form
+    onSubmit={async (e) => {
+      e.preventDefault();
+      const form = e.target as HTMLFormElement;
+      const message = (form.elements.namedItem('message') as HTMLTextAreaElement).value;
 
-      <button
-        onClick={handlePayment}
-        className="mt-4 w-full bg-black text-white py-3 rounded hover:bg-gray-900 transition"
-      >
-        💳 Proceed to Payment
-      </button>
+      if (!message.trim()) return;
+
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+
+      form.reset();
+      alert('Thanks for the feedback!');
+    }}
+  >
+    <textarea
+      name="message"
+      rows={3}
+      className="w-full border p-2 rounded mb-2"
+      placeholder="Something you liked or want improved?"
+      required
+    />
+    <button
+      type="submit"
+      className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
+    >
+      Send Feedback
+    </button>
+  </form>
+</div>
     </main>
   );
 }
