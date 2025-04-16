@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 interface SplitRecord {
   id: string;
@@ -16,6 +16,10 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const fetchSplits = async () => {
       const { data, error } = await supabase
         .from('splits')
