@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import supabase from '@/lib/supabase';
 
 interface Member {
   name: string;
@@ -17,34 +17,41 @@ export default function ResultPage() {
 
   useEffect(() => {
     const fetchSplit = async () => {
-      const id = sessionStorage.getItem('lastProjectId');
-      if (!id) {
-        alert('❌ No project ID found!');
-        return;
+      try {
+        const id = sessionStorage.getItem('lastProjectId');
+        if (!id) {
+          alert('❌ No project ID found!');
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('splits')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) {
+          console.error('❌ Error fetching split:', error);
+          alert('Failed to fetch split data');
+          return;
+        }
+
+        const total = parseFloat(data.total_amount);
+        const enrichedMembers = data.members.map((m: Member) => ({
+          ...m,
+          payout: ((parseFloat(m.percent) || 0) / 100) * total,
+        }));
+
+        setProjectName(data.project_name);
+        setTotalAmount(total);
+        setMembers(enrichedMembers);
+      } catch (err) {
+        console.error('❌ Unexpected error:', err);
+        alert('An unexpected error occurred');
+      } finally {
+        setLoading(false);
       }
-
-      const { data, error } = await supabase
-        .from('splits')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        console.error('❌ Error fetching split:', error);
-        alert('Failed to fetch split data');
-        return;
-      }
-
-      const total = parseFloat(data.total_amount);
-      const enrichedMembers = data.members.map((m: Member) => ({
-        ...m,
-        payout: ((parseFloat(m.percent) || 0) / 100) * total,
-      }));
-
-      setProjectName(data.project_name);
-      setTotalAmount(total);
-      setMembers(enrichedMembers);
-      setLoading(false);
     };
 
     fetchSplit();
@@ -75,42 +82,43 @@ export default function ResultPage() {
           ))}
         </ul>
       </div>
+
       {/* Feedback Box */}
-<div className="mt-8 bg-white p-4 rounded-lg shadow border border-gray-200">
-  <h3 className="text-lg font-semibold mb-2">💬 Got feedback?</h3>
-  <form
-    onSubmit={async (e) => {
-      e.preventDefault();
-      const form = e.target as HTMLFormElement;
-      const message = (form.elements.namedItem('message') as HTMLTextAreaElement).value;
+      <div className="mt-8 bg-white p-4 rounded-lg shadow border border-gray-200">
+        <h3 className="text-lg font-semibold mb-2">💬 Got feedback?</h3>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.target as HTMLFormElement;
+            const message = (form.elements.namedItem('message') as HTMLTextAreaElement).value;
 
-      if (!message.trim()) return;
+            if (!message.trim()) return;
 
-      await fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-      });
+            await fetch('/api/feedback', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message }),
+            });
 
-      form.reset();
-      alert('Thanks for the feedback!');
-    }}
-  >
-    <textarea
-      name="message"
-      rows={3}
-      className="w-full border p-2 rounded mb-2"
-      placeholder="Something you liked or want improved?"
-      required
-    />
-    <button
-      type="submit"
-      className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
-    >
-      Send Feedback
-    </button>
-  </form>
-</div>
+            form.reset();
+            alert('✅ Thanks for the feedback!');
+          }}
+        >
+          <textarea
+            name="message"
+            rows={3}
+            className="w-full border p-2 rounded mb-2"
+            placeholder="Something you liked or want improved?"
+            required
+          />
+          <button
+            type="submit"
+            className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
+          >
+            Send Feedback
+          </button>
+        </form>
+      </div>
     </main>
   );
 }
